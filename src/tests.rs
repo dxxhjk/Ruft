@@ -1,11 +1,3 @@
-use super::rpc::{Message, RPCMessage, RequestVoteRequest, RPCCS};
-use super::timer::NodeTimer;
-use crossbeam_channel::{select, unbounded};
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::sync::Arc;
-use std::thread;
-use std::time::{Duration, Instant};
-
 #[cfg(test)]
 #[test]
 fn rpc_send_rec() {
@@ -18,7 +10,7 @@ fn rpc_send_rec() {
     thread::spawn(move || rpc_client.start_listener(rpc_notifier).unwrap());
 
     let msg_to_send = RPCMessage::new(Message::RequestVoteRequest(RequestVoteRequest::new(
-        0, 0, 0, 0,
+        0, *socket_addr, 0, 0,
     )))
     .unwrap();
 
@@ -71,3 +63,40 @@ fn timer_run_heartbeat() {
 //         default(Duration::from_millis(5)) => Ok(()),
 //     }
 // }
+
+macro_rules! start_node {
+    ($id: expr) => {
+        let mut peers = vec![
+            String::from("127.0.0.1:8000"),
+            String::from("127.0.0.1:8001"),
+            String::from("127.0.0.1:8002"),
+            String::from("127.0.0.1:8003"),
+            String::from("127.0.0.1:8004"),
+        ];
+        peers.remove($id);
+        let node = Node::new(
+            String::from("127.0.0.1"), 
+            8000 + ($id as u16),
+            5,
+            5,
+            peers
+        );
+        let mut node = match node {
+            Ok(node) => node,
+            Err(error) => panic!("Creating Node Error: {}", error),
+        };
+        match node.run() {
+            Ok(()) => println!("Node Stopped"),
+            Err(error) => panic!("Running Node Error: {}", error),
+        };
+    };
+}
+
+#[test]
+fn start_cluster() {
+    for id in 0..5 {
+        thread::spawn(move || {
+            start_node!(id);
+        });
+    }
+}
