@@ -227,16 +227,21 @@ impl Node {
                 if !msg.entries.is_empty() {
                     let mut tempentry = Arc::new(msg.entries.clone());
                     let success: bool = if msg.term < self.current_term
-                    || msg.prev_log_index >= self.logs.len()
-                    || msg.entries[msg.prev_log_index].term != self.logs[msg.prev_log_index].term
+                    || msg.prev_log_index < self.logs.len()
+                    || msg.prev_log_term != self.logs[msg.prev_log_index - 1].term
                     {
+                        println!("{}:{:?}", self.logs.len(), self.logs[msg.prev_log_index - 1]);
+                        println!("{} vs {}", msg.term.clone(), self.current_term.clone());
+                        println!("{} vs {}", msg.prev_log_index.clone(), self.logs.len().clone());
+                        println!("{} vs {}", msg.prev_log_term.clone(), self.logs[msg.prev_log_index - 1].term.clone());
                         false
                     } else {
+                        println!("{:?}", self.logs.last().unwrap());
                         self.logs.pop();
                         for entry in tempentry.to_vec() {
                             self.logs.push(entry);
                         }
-                        if msg.leader_commit > self.commit_index {
+                        if msg.leader_commit >= self.commit_index {
                             self.commit_index = if msg.leader_commit < self.logs.len() {
                                 msg.leader_commit
                             } else {
@@ -285,7 +290,7 @@ impl Node {
                     loop {
                         let mut match_count = 1;
                         for val in self.match_index.values() {
-                            if val >= &i && self.logs[i].term == self.current_term {
+                            if val >= &i && self.logs[i - 1].term == self.current_term {
                                 match_count += 1;
                             }
                         }
@@ -297,6 +302,7 @@ impl Node {
                     }
                     //此处执行command
                     self.logs.append(&mut msg.commands);
+                    self.last_applied = i as u32;
                     self.commit_index = i;
                 }
             }
