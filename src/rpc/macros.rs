@@ -7,7 +7,7 @@ macro_rules! append_entries_request {
                 index: $node.commit_index,
                 term: $node.current_term,
                 command: $entries,
-            }
+            };
         temp_entries.push(tempEntry);
         let aer_msg = RPCMessage::new(Message::AppendEntriesRequest(AppendEntriesRequest::new(
             $node.current_term,                     //term
